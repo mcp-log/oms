@@ -1,0 +1,144 @@
+openapi: "3.0.3"
+info:
+  title: OMS Common Schemas
+  version: "1.0.0"
+paths: {}
+components:
+  schemas:
+    Money:
+      type: object
+      description: Monetary value with currency. Amount is always a decimal string, never a float.
+      required:
+        - currencyCode
+        - amount
+      properties:
+        currencyCode:
+          type: string
+          description: ISO 4217 currency code
+          pattern: "^[A-Z]{3}$"
+          example: "USD"
+        amount:
+          type: string
+          description: Decimal string representation of the monetary amount
+          pattern: "^-?\\d+(\\.\\d+)?$"
+          example: "29.99"
+
+    Address:
+      type: object
+      description: Physical address
+      required:
+        - line1
+        - city
+        - postalCode
+        - countryCode
+      properties:
+        line1:
+          type: string
+          maxLength: 255
+          example: "123 Main St"
+        line2:
+          type: string
+          maxLength: 255
+          example: "Apt 4B"
+        city:
+          type: string
+          maxLength: 255
+          example: "Portland"
+        stateOrRegion:
+          type: string
+          maxLength: 100
+          example: "OR"
+        postalCode:
+          type: string
+          maxLength: 20
+          example: "97201"
+        countryCode:
+          type: string
+          description: ISO 3166-1 alpha-2 country code
+          pattern: "^[A-Z]{2}$"
+          example: "US"
+
+    ProblemDetail:
+      type: object
+      description: RFC 7807 Problem Details for HTTP APIs
+      required:
+        - type
+        - title
+        - status
+      properties:
+        type:
+          type: string
+          format: uri
+          description: A URI reference that identifies the problem type
+          example: "https://api.oms.example/problems/validation-error"
+        title:
+          type: string
+          description: A short, human-readable summary of the problem type
+          example: "Validation Error"
+        status:
+          type: integer
+          description: The HTTP status code
+          example: 422
+        detail:
+          type: string
+          description: A human-readable explanation specific to this occurrence
+          example: "Order must have at least one line item"
+        instance:
+          type: string
+          format: uri
+          description: A URI reference that identifies the specific occurrence
+          example: "/v1/orders"
+        errors:
+          type: array
+          description: Detailed validation errors
+          items:
+            $ref: "#/components/schemas/ValidationError"
+
+    ValidationError:
+      type: object
+      properties:
+        field:
+          type: string
+          description: The field that failed validation
+          example: "lines"
+        message:
+          type: string
+          description: Description of the validation failure
+          example: "must contain at least 1 item"
+
+    CursorPagination:
+      type: object
+      description: Cursor-based pagination metadata
+      required:
+        - hasMore
+      properties:
+        nextCursor:
+          type: string
+          description: Opaque cursor for the next page. Absent if no more results.
+          example: "MDFhMmIzYzQtZDVlNi03ZjhhLTliMGMtZGVmMDEyMzQ1Njc4"
+        hasMore:
+          type: boolean
+          description: Whether more results are available
+          example: true
+
+    Channel:
+      type: string
+      description: The origin channel of an order
+      enum:
+        - ECOMMERCE
+        - MARKETPLACE
+        - B2B
+        - DIRECT
+
+    OrderStatus:
+      type: string
+      description: Current status of an order in its lifecycle
+      enum:
+        - PENDING_VALIDATION
+        - CONFIRMED
+        - PARTIALLY_SHIPPED
+        - SHIPPED
+        - UNFULFILLABLE
+        - DELIVERED
+        - CANCELLED
+        - COMPLETED

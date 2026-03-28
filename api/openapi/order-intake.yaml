@@ -1,0 +1,559 @@
+openapi: "3.0.3"
+info:
+  title: OMS Order Intake API
+  description: |
+    Order Intake bounded context API for the Order Management System.
+    Receives orders from external channels and manages order lifecycle.
+  version: "1.0.0"
+  contact:
+    name: OMS Team
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Orders
+    description: Order management operations
+  - name: Webhooks
+    description: Channel webhook receivers
+
+paths:
+  /v1/orders:
+    post:
+      operationId: createOrder
+      summary: Create a new order
+      description: |
+        Creates a new order from an external channel. Requires an Idempotency-Key
+        header. If the same key is used twice, the original order is returned.
+      tags:
+        - Orders
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderRequest"
+      responses:
+        "201":
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "200":
+          description: Order already exists (idempotent response)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "422":
+          description: Validation error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+
+    get:
+      operationId: listOrders
+      summary: List orders with filtering
+      description: Returns a paginated list of orders with optional filtering by status and channel.
+      tags:
+        - Orders
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/OrderStatus"
+        - name: channel
+          in: query
+          schema:
+            $ref: "#/components/schemas/Channel"
+        - name: cursor
+          in: query
+          description: Opaque pagination cursor
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Number of results per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Paginated list of orders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderList"
+
+  /v1/orders/{orderId}:
+    get:
+      operationId: getOrderById
+      summary: Get order by ID
+      description: Returns a single order with all line items.
+      tags:
+        - Orders
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: Order found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Order not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+
+  /v1/orders/{orderId}/lines:
+    get:
+      operationId: listOrderLines
+      summary: Get order line items
+      description: Returns the line items for a specific order.
+      tags:
+        - Orders
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: Order lines
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OrderLine"
+        "404":
+          description: Order not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+
+  /v1/orders/{orderId}/confirm:
+    post:
+      operationId: confirmOrder
+      summary: Confirm an order
+      description: Transitions the order from PENDING_VALIDATION to CONFIRMED.
+      tags:
+        - Orders
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: Order confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Order not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Invalid state transition
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+
+  /v1/orders/{orderId}/cancel:
+    post:
+      operationId: cancelOrder
+      summary: Cancel an order
+      description: Cancels an order that is in PENDING_VALIDATION or CONFIRMED status.
+      tags:
+        - Orders
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CancelOrderRequest"
+      responses:
+        "200":
+          description: Order cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Order not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Invalid state transition
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+
+  /v1/webhooks/shopify:
+    post:
+      operationId: handleShopifyWebhook
+      summary: Receive Shopify webhook
+      description: |
+        Receives order webhooks from Shopify. Validates HMAC signature and
+        translates via ACL to canonical order format.
+      tags:
+        - Webhooks
+      parameters:
+        - name: X-Shopify-Hmac-Sha256
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Raw Shopify webhook payload
+      responses:
+        "200":
+          description: Webhook processed
+        "401":
+          description: Invalid HMAC signature
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+
+components:
+  parameters:
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      description: UUID of the order
+      schema:
+        type: string
+        format: uuid
+
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Unique key for idempotent order creation
+      schema:
+        type: string
+        maxLength: 255
+
+  schemas:
+    Money:
+      type: object
+      required:
+        - currencyCode
+        - amount
+      properties:
+        currencyCode:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          example: "USD"
+        amount:
+          type: string
+          pattern: "^-?\\d+(\\.\\d+)?$"
+          example: "29.99"
+
+    Address:
+      type: object
+      required:
+        - line1
+        - city
+        - postalCode
+        - countryCode
+      properties:
+        line1:
+          type: string
+          maxLength: 255
+        line2:
+          type: string
+          maxLength: 255
+        city:
+          type: string
+          maxLength: 255
+        stateOrRegion:
+          type: string
+          maxLength: 100
+        postalCode:
+          type: string
+          maxLength: 20
+        countryCode:
+          type: string
+          pattern: "^[A-Z]{2}$"
+
+    ProblemDetail:
+      type: object
+      required:
+        - type
+        - title
+        - status
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValidationError"
+
+    ValidationError:
+      type: object
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+
+    Channel:
+      type: string
+      enum:
+        - ECOMMERCE
+        - MARKETPLACE
+        - B2B
+        - DIRECT
+
+    OrderStatus:
+      type: string
+      enum:
+        - PENDING_VALIDATION
+        - CONFIRMED
+        - PARTIALLY_SHIPPED
+        - SHIPPED
+        - UNFULFILLABLE
+        - DELIVERED
+        - CANCELLED
+        - COMPLETED
+
+    Customer:
+      type: object
+      required:
+        - name
+        - email
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        phone:
+          type: string
+          maxLength: 50
+
+    OrderLineRequest:
+      type: object
+      required:
+        - sku
+        - productName
+        - quantity
+        - unitPrice
+      properties:
+        sku:
+          type: string
+          maxLength: 100
+        productName:
+          type: string
+          maxLength: 255
+        quantity:
+          type: integer
+          minimum: 1
+        unitPrice:
+          $ref: "#/components/schemas/Money"
+
+    OrderLine:
+      type: object
+      required:
+        - id
+        - sku
+        - productName
+        - quantity
+        - unitPrice
+        - lineTotal
+      properties:
+        id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        productName:
+          type: string
+        quantity:
+          type: integer
+        unitPrice:
+          $ref: "#/components/schemas/Money"
+        lineTotal:
+          $ref: "#/components/schemas/Money"
+
+    CreateOrderRequest:
+      type: object
+      required:
+        - channel
+        - customer
+        - shippingAddress
+        - billingAddress
+        - lines
+        - placedAt
+      properties:
+        channel:
+          $ref: "#/components/schemas/Channel"
+        externalId:
+          type: string
+          maxLength: 255
+          description: External system order reference
+        customer:
+          $ref: "#/components/schemas/Customer"
+        shippingAddress:
+          $ref: "#/components/schemas/Address"
+        billingAddress:
+          $ref: "#/components/schemas/Address"
+        lines:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/OrderLineRequest"
+        placedAt:
+          type: string
+          format: date-time
+
+    CancelOrderRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          maxLength: 1000
+
+    Order:
+      type: object
+      required:
+        - id
+        - channel
+        - customer
+        - shippingAddress
+        - billingAddress
+        - lines
+        - currencyCode
+        - orderTotal
+        - status
+        - placedAt
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        channel:
+          $ref: "#/components/schemas/Channel"
+        externalId:
+          type: string
+        customer:
+          $ref: "#/components/schemas/Customer"
+        shippingAddress:
+          $ref: "#/components/schemas/Address"
+        billingAddress:
+          $ref: "#/components/schemas/Address"
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderLine"
+        currencyCode:
+          type: string
+        orderTotal:
+          $ref: "#/components/schemas/Money"
+        status:
+          $ref: "#/components/schemas/OrderStatus"
+        placedAt:
+          type: string
+          format: date-time
+        confirmedAt:
+          type: string
+          format: date-time
+        cancelledAt:
+          type: string
+          format: date-time
+        cancellationReason:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    OrderSummary:
+      type: object
+      required:
+        - id
+        - channel
+        - status
+        - orderTotal
+        - placedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        channel:
+          $ref: "#/components/schemas/Channel"
+        externalId:
+          type: string
+        customerName:
+          type: string
+        status:
+          $ref: "#/components/schemas/OrderStatus"
+        orderTotal:
+          $ref: "#/components/schemas/Money"
+        placedAt:
+          type: string
+          format: date-time
+
+    OrderList:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderSummary"
+        pagination:
+          $ref: "#/components/schemas/CursorPagination"
+
+    CursorPagination:
+      type: object
+      required:
+        - hasMore
+      properties:
+        nextCursor:
+          type: string
+        hasMore:
+          type: boolean
