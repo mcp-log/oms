@@ -102,20 +102,19 @@ jobs:
           cd pkg && go mod download
           cd ../internal/orderintake && go mod download
 
-      - name: Install golangci-lint
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.64.8
-          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-
       - name: Run golangci-lint (pkg)
-        run: |
-          cd pkg
-          golangci-lint run --timeout=5m ./...
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: latest
+          working-directory: pkg
+          args: --timeout=5m ./...
 
       - name: Run golangci-lint (orderintake)
-        run: |
-          cd internal/orderintake
-          golangci-lint run --timeout=5m ./...
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: latest
+          working-directory: internal/orderintake
+          args: --timeout=5m ./...
 
   build-image:
     name: Build Docker Image
