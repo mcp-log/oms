@@ -13,7 +13,7 @@ lives in `pkg/` as a separate module. No circular dependencies between modules.
 ## Article II — Interface Mandate
 
 All bounded contexts expose **OpenAPI 3.0.3** contracts for HTTP interfaces.
-Internal cross-BC communication uses **domain events** published via NATS JetStream.
+Internal cross-BC communication uses **domain events** published via Apache Kafka.
 No direct function calls between bounded contexts.
 
 ## Article III — Test-First
@@ -47,13 +47,13 @@ implementations over generic frameworks. Start simple; evolve when evidence dema
 
 ## Article VIII — Anti-Abstraction
 
-Use framework features directly: Chi for routing, sqlc for queries, Watermill for
-messaging. No wrapping libraries in custom abstractions. Framework idioms are the
+Use framework features directly: Chi for routing, sqlc for queries, segmentio/kafka-go
+for messaging. No wrapping libraries in custom abstractions. Framework idioms are the
 project idioms.
 
 ## Article IX — Integration-First Testing
 
-Integration tests run against real PostgreSQL and NATS via `testcontainers-go`.
+Integration tests run against real PostgreSQL and Kafka via `testcontainers-go`.
 Contract tests verify event schemas. Mocks are only acceptable for unit-testing
 domain logic in isolation.
 

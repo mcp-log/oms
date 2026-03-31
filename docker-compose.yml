@@ -16,16 +16,26 @@ services:
       timeout: 5s
       retries: 5
 
-  nats:
-    image: nats:2.10
-    container_name: oms-nats
-    command: ["-js"]
+  kafka:
+    image: bitnami/kafka:3.7
+    container_name: oms-kafka
     ports:
-      - "4222:4222"
-      - "8222:8222"
+      - "9092:9092"
+      - "9094:9094"
+    environment:
+      # KRaft mode (no Zookeeper)
+      KAFKA_CFG_NODE_ID: 0
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9094,CONTROLLER://:9093,EXTERNAL://:9092
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9094,EXTERNAL://localhost:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
     healthcheck:
-      test: ["CMD", "nats-server", "--signal", "ldm"]
-      interval: 5s
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9094 --list"]
+      interval: 10s
       timeout: 5s
       retries: 5
 

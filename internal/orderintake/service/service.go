@@ -18,18 +18,20 @@ type Service struct {
 	Handler        *ports.HTTPHandler
 	ShopifyAdapter *shopify.Adapter
 	Router         func() interface{} // Returns chi.Router via ports.NewRouter
+	publisher      *publisher.EventPublisher
 }
 
 // Config holds configuration for the service.
 type Config struct {
 	ShopifyWebhookSecret string
+	KafkaBrokers         string
 }
 
 // New creates a fully wired Service with all dependencies.
 func New(pool *pgxpool.Pool, cfg Config, logger *slog.Logger) *Service {
 	// Adapters
 	repo := postgres.NewOrderRepository(pool)
-	pub := publisher.NewEventPublisher(logger)
+	pub := publisher.NewKafkaEventPublisher(cfg.KafkaBrokers, logger)
 	shopifyACL := shopify.NewAdapter(cfg.ShopifyWebhookSecret)
 
 	// Command handlers
@@ -64,5 +66,14 @@ func New(pool *pgxpool.Pool, cfg Config, logger *slog.Logger) *Service {
 	return &Service{
 		Handler:        httpHandler,
 		ShopifyAdapter: shopifyACL,
+		publisher:      pub,
 	}
+}
+
+// Close gracefully shuts down service resources.
+func (s *Service) Close() error {
+	if s.publisher != nil {
+		return s.publisher.Close()
+	}
+	return nil
 }

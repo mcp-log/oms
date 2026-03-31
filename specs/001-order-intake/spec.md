@@ -161,7 +161,7 @@ base64-encoded strings based on the order's UUID v7 (time-sortable).
 
 ### NFR-03: Transactional Event Publishing
 Domain event publishing MUST be transactional with the order state change. Use the
-transactional outbox pattern or Watermill's transactional publisher to guarantee
+transactional outbox pattern or Kafka's transactional producer to guarantee
 at-least-once delivery.
 
 ### NFR-04: Source Document Immutability

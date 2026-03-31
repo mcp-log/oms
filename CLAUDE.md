@@ -9,7 +9,7 @@ GitHub spec-kit. The first bounded context is **Order Intake**.
 - **Pattern**: Hexagonal Architecture + DDD Aggregates + CQRS
 - **API**: OpenAPI 3.0.3 with oapi-codegen (Chi router)
 - **Database**: PostgreSQL 16 with sqlc
-- **Messaging**: NATS JetStream via Watermill
+- **Messaging**: Apache Kafka via segmentio/kafka-go
 - **Testing**: testify + testcontainers-go
 
 ## Key Principles (see .specify/memory/constitution.md)
@@ -41,7 +41,7 @@ oms/
     app/command/                    # CQRS command handlers
     app/query/                      # CQRS query handlers
     ports/                          # HTTP handlers, event subscribers
-    adapters/                       # Postgres repo, Watermill publisher
+    adapters/                       # Postgres repo, Kafka publisher
     service/                        # DI wiring
   migrations/orderintake/           # DB migrations
 ```

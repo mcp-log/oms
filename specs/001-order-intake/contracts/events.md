@@ -1,7 +1,7 @@
 # Order Intake — Event Contracts
 
 > **Spec Ref**: 001-order-intake
-> **Transport**: NATS JetStream via Watermill
+> **Transport**: Apache Kafka via segmentio/kafka-go
 
 ---
 
@@ -28,7 +28,8 @@ transitions. All events include a standard envelope.
 ### order.confirmed
 **Published when**: Order transitions from PENDING_VALIDATION to CONFIRMED
 **Consumers**: Fulfillment, Billing
-**NATS Subject**: `oms.orders.confirmed`
+**Kafka Topic**: `oms.orders.confirmed`
+**Message Key**: Order UUID (aggregateId) for partition ordering
 
 ```json
 {
@@ -65,7 +66,8 @@ transitions. All events include a standard envelope.
 ### order.cancelled
 **Published when**: Order transitions to CANCELLED
 **Consumers**: Fulfillment, Billing, Inventory
-**NATS Subject**: `oms.orders.cancelled`
+**Kafka Topic**: `oms.orders.cancelled`
+**Message Key**: Order UUID (aggregateId) for partition ordering
 
 ```json
 {
@@ -80,7 +82,8 @@ transitions. All events include a standard envelope.
 ### order.shipped
 **Published when**: Order transitions to SHIPPED
 **Consumers**: Billing
-**NATS Subject**: `oms.orders.shipped`
+**Kafka Topic**: `oms.orders.shipped`
+**Message Key**: Order UUID (aggregateId) for partition ordering
 
 ```json
 {
@@ -94,7 +97,8 @@ transitions. All events include a standard envelope.
 ### order.delivered
 **Published when**: Order transitions to DELIVERED
 **Consumers**: Billing
-**NATS Subject**: `oms.orders.delivered`
+**Kafka Topic**: `oms.orders.delivered`
+**Message Key**: Order UUID (aggregateId) for partition ordering
 
 ```json
 {
@@ -108,7 +112,8 @@ transitions. All events include a standard envelope.
 ### order.status_changed
 **Published when**: Any state transition occurs (catch-all for audit/CQRS)
 **Consumers**: Audit, CQRS read models
-**NATS Subject**: `oms.orders.status_changed`
+**Kafka Topic**: `oms.orders.status-changed`
+**Message Key**: Order UUID (aggregateId) for partition ordering
 
 ```json
 {
@@ -126,10 +131,10 @@ transitions. All events include a standard envelope.
 Events consumed from other bounded contexts that trigger state transitions
 in the Order aggregate.
 
-| Event | Source BC | NATS Subject | Action |
+| Event | Source BC | Kafka Topic | Action |
 |-------|----------|-------------|--------|
 | `fulfillment.shipped` | Fulfillment | `oms.fulfillment.shipped` | order.MarkShipped() |
-| `fulfillment.partially_shipped` | Fulfillment | `oms.fulfillment.partially_shipped` | order.MarkPartiallyShipped() |
+| `fulfillment.partially_shipped` | Fulfillment | `oms.fulfillment.partially-shipped` | order.MarkPartiallyShipped() |
 | `fulfillment.unfulfillable` | Fulfillment | `oms.fulfillment.unfulfillable` | order.MarkUnfulfillable() |
 | `shipping.delivered` | Shipping | `oms.shipping.delivered` | order.MarkDelivered() |
 

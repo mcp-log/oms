@@ -22,6 +22,7 @@ func main() {
 	dbURL := envOrDefault("DATABASE_URL", "postgres://oms:oms_secret@localhost:5432/oms_orderintake?sslmode=disable")
 	addr := envOrDefault("LISTEN_ADDR", ":8080")
 	shopifySecret := envOrDefault("SHOPIFY_WEBHOOK_SECRET", "")
+	kafkaBrokers := envOrDefault("KAFKA_BROKERS", "localhost:9092")
 
 	pool, err := pgxpool.New(context.Background(), dbURL)
 	if err != nil {
@@ -38,6 +39,7 @@ func main() {
 
 	svc := service.New(pool, service.Config{
 		ShopifyWebhookSecret: shopifySecret,
+		KafkaBrokers:         kafkaBrokers,
 	}, logger)
 
 	router := ports.NewRouter(svc.Handler)
@@ -69,6 +71,11 @@ func main() {
 	if err := srv.Shutdown(ctx); err != nil {
 		logger.Error("server forced shutdown", "error", err)
 		os.Exit(1)
+	}
+
+	// Close Kafka writer
+	if err := svc.Close(); err != nil {
+		logger.Error("failed to close service resources", "error", err)
 	}
 
 	fmt.Println("server stopped gracefully")
