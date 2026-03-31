@@ -1,0 +1,33 @@
+theme: just-the-docs
+title: OMS - Order Management System
+description: Order Intake bounded context for OMS ecosystem
+url: https://mcp-log.github.io
+baseurl: /oms
+
+search_enabled: true
+search:
+  heading_level: 2
+  previews: 3
+  preview_words_before: 5
+  preview_words_after: 10
+  tokenizer_separator: /[\s/]+/
+  rel_url: true
+  button: false
+
+aux_links:
+  "GitHub Repository":
+    - "https://github.com/mcp-log/oms"
+  "API Reference":
+    - "/oms/api/v1/reference.html"
+
+# Footer
+footer_content: "Part of the OMS Ecosystem | MIT License"
+
+# Color scheme
+color_scheme: dark
+
+# Enable code copy button
+enable_copy_code_button: true
+
+# Navigation structure
+nav_sort: case_insensitive
