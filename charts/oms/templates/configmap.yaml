@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "oms.fullname" . }}
+  labels:
+    {{- include "oms.labels" . | nindent 4 }}
+data:
+  # Database configuration
+  DB_HOST: {{ .Values.database.host | quote }}
+  DB_PORT: {{ .Values.database.port | quote }}
+  DB_NAME: {{ .Values.database.name | quote }}
+  DB_USER: {{ .Values.database.user | quote }}
+  DB_SSL_MODE: {{ .Values.database.sslMode | quote }}
+  DB_MAX_CONNECTIONS: {{ .Values.database.maxConnections | quote }}
+  DB_MIN_CONNECTIONS: {{ .Values.database.minConnections | quote }}
+  DB_MAX_CONN_LIFETIME: {{ .Values.database.maxConnLifetime | quote }}
+  DB_MAX_CONN_IDLE_TIME: {{ .Values.database.maxConnIdleTime | quote }}
+  DB_HEALTH_CHECK_PERIOD: {{ .Values.database.healthCheckPeriod | quote }}
+
+  # Kafka configuration
+  KAFKA_TOPIC_PREFIX: {{ .Values.kafka.topicPrefix | quote }}
+  KAFKA_PRODUCER_ACKS: {{ .Values.kafka.producer.acks | quote }}
+  KAFKA_PRODUCER_COMPRESSION: {{ .Values.kafka.producer.compression | quote }}
+  KAFKA_PRODUCER_MAX_ATTEMPTS: {{ .Values.kafka.producer.maxAttempts | quote }}
+  KAFKA_PRODUCER_BATCH_SIZE: {{ .Values.kafka.producer.batchSize | quote }}
+  KAFKA_PRODUCER_BATCH_TIMEOUT: {{ .Values.kafka.producer.batchTimeout | quote }}
+  KAFKA_CONSUMER_GROUP: {{ .Values.kafka.consumerGroup | quote }}
+
+  # Application configuration
+  SHUTDOWN_TIMEOUT: {{ .Values.config.shutdownTimeout | quote }}

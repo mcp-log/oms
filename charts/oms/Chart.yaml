@@ -1,0 +1,17 @@
+apiVersion: v2
+name: oms
+description: Order Management System - Order Intake Service
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - oms
+  - order-management
+  - e-commerce
+  - microservices
+home: https://mcp-log.github.io/oms/
+sources:
+  - https://github.com/mcp-log/oms
+maintainers:
+  - name: OMS Team
+    email: team@example.com
