@@ -93,6 +93,14 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
+          cache-dependency-path: |
+            pkg/go.sum
+            internal/orderintake/go.sum
+
+      - name: Install dependencies
+        run: |
+          cd pkg && go mod download
+          cd ../internal/orderintake && go mod download
 
       - name: Install golangci-lint
         run: |
