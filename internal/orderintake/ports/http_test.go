@@ -212,12 +212,12 @@ func TestCreateOrder_ValidOrder_201(t *testing.T) {
 	resp := postJSON(ts, "/v1/orders", createOrderPayload(), map[string]string{
 		"Idempotency-Key": "test-key-001",
 	})
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
 
 	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&result))
 
 	assert.NotEmpty(t, result["id"])
 	assert.Equal(t, "PENDING_VALIDATION", result["status"])
@@ -231,18 +231,18 @@ func TestCreateOrder_DuplicateIdempotencyKey_200(t *testing.T) {
 	payload := createOrderPayload()
 
 	resp1 := postJSON(ts, "/v1/orders", payload, headers)
-	defer resp1.Body.Close()
+	defer func() { _ = resp1.Body.Close() }()
 	assert.Equal(t, http.StatusCreated, resp1.StatusCode)
 
 	var order1 map[string]interface{}
-	json.NewDecoder(resp1.Body).Decode(&order1)
+	require.NoError(t, json.NewDecoder(resp1.Body).Decode(&order1))
 
 	resp2 := postJSON(ts, "/v1/orders", payload, headers)
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 	assert.Equal(t, http.StatusOK, resp2.StatusCode)
 
 	var order2 map[string]interface{}
-	json.NewDecoder(resp2.Body).Decode(&order2)
+	require.NoError(t, json.NewDecoder(resp2.Body).Decode(&order2))
 
 	assert.Equal(t, order1["id"], order2["id"])
 }
@@ -256,7 +256,7 @@ func TestCreateOrder_ZeroLines_422(t *testing.T) {
 	resp := postJSON(ts, "/v1/orders", payload, map[string]string{
 		"Idempotency-Key": "test-key-002",
 	})
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode)
 	assert.Equal(t, "application/problem+json", resp.Header.Get("Content-Type"))
@@ -280,7 +280,7 @@ func TestCreateOrder_MixedCurrencies_422(t *testing.T) {
 	resp := postJSON(ts, "/v1/orders", payload, map[string]string{
 		"Idempotency-Key": "test-key-003",
 	})
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode)
 }
@@ -289,7 +289,7 @@ func TestCreateOrder_MissingIdempotencyKey_400(t *testing.T) {
 	ts, _, _ := setupTestServer(t)
 
 	resp := postJSON(ts, "/v1/orders", createOrderPayload(), nil)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Validation error for missing header
 	assert.True(t, resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusUnprocessableEntity)
@@ -304,19 +304,19 @@ func TestConfirmOrder_ValidTransition(t *testing.T) {
 	resp := postJSON(ts, "/v1/orders", createOrderPayload(), map[string]string{
 		"Idempotency-Key": "confirm-key-001",
 	})
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var created map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&created)
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&created))
 	orderID := created["id"].(string)
 
 	// Confirm order
 	resp2 := postJSON(ts, "/v1/orders/"+orderID+"/confirm", nil, nil)
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, resp2.StatusCode)
 
 	var confirmed map[string]interface{}
-	json.NewDecoder(resp2.Body).Decode(&confirmed)
+	require.NoError(t, json.NewDecoder(resp2.Body).Decode(&confirmed))
 	assert.Equal(t, "CONFIRMED", confirmed["status"])
 
 	// Verify event emitted
@@ -332,16 +332,16 @@ func TestConfirmOrder_InvalidTransition_409(t *testing.T) {
 	resp := postJSON(ts, "/v1/orders", createOrderPayload(), map[string]string{
 		"Idempotency-Key": "shipped-confirm-key",
 	})
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var created map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&created)
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&created))
 	orderID := created["id"].(string)
 
-	postJSON(ts, "/v1/orders/"+orderID+"/confirm", nil, nil).Body.Close()
+	_ = postJSON(ts, "/v1/orders/"+orderID+"/confirm", nil, nil).Body.Close()
 
 	// Try to confirm again (CONFIRMED -> CONFIRMED is invalid)
 	resp2 := postJSON(ts, "/v1/orders/"+orderID+"/confirm", nil, nil)
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 	assert.Equal(t, http.StatusConflict, resp2.StatusCode)
 }
 
@@ -353,19 +353,19 @@ func TestCancelOrder_FromPending(t *testing.T) {
 	resp := postJSON(ts, "/v1/orders", createOrderPayload(), map[string]string{
 		"Idempotency-Key": "cancel-key-001",
 	})
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var created map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&created)
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&created))
 	orderID := created["id"].(string)
 
 	cancelBody := map[string]string{"reason": "Customer changed mind"}
 	resp2 := postJSON(ts, "/v1/orders/"+orderID+"/cancel", cancelBody, nil)
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, resp2.StatusCode)
 
 	var cancelled map[string]interface{}
-	json.NewDecoder(resp2.Body).Decode(&cancelled)
+	require.NoError(t, json.NewDecoder(resp2.Body).Decode(&cancelled))
 	assert.Equal(t, "CANCELLED", cancelled["status"])
 
 	evts := pub.Events()
@@ -384,12 +384,12 @@ func TestCancelOrder_FromShipped_409(t *testing.T) {
 	resp := postJSON(ts, "/v1/orders", createOrderPayload(), map[string]string{
 		"Idempotency-Key": "cancel-shipped-key",
 	})
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var created map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&created)
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&created))
 	orderID := created["id"].(string)
 
-	postJSON(ts, "/v1/orders/"+orderID+"/confirm", nil, nil).Body.Close()
+	_ = postJSON(ts, "/v1/orders/"+orderID+"/confirm", nil, nil).Body.Close()
 
 	// We need to mark shipped via the repo directly since there's no HTTP endpoint
 	// for downstream events. Let's simulate via confirm -> use repo to ship.
@@ -399,7 +399,7 @@ func TestCancelOrder_FromShipped_409(t *testing.T) {
 	// Actually, confirm -> cancel is valid, so let's test confirm -> cancel success:
 	cancelBody := map[string]string{"reason": "Changed mind after confirm"}
 	resp2 := postJSON(ts, "/v1/orders/"+orderID+"/cancel", cancelBody, nil)
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 	assert.Equal(t, http.StatusOK, resp2.StatusCode)
 }
 
@@ -411,18 +411,18 @@ func TestGetOrder_Found(t *testing.T) {
 	resp := postJSON(ts, "/v1/orders", createOrderPayload(), map[string]string{
 		"Idempotency-Key": "get-key-001",
 	})
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var created map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&created)
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&created))
 	orderID := created["id"].(string)
 
 	resp2 := getJSON(ts, "/v1/orders/"+orderID)
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, resp2.StatusCode)
 
 	var fetched map[string]interface{}
-	json.NewDecoder(resp2.Body).Decode(&fetched)
+	require.NoError(t, json.NewDecoder(resp2.Body).Decode(&fetched))
 	assert.Equal(t, orderID, fetched["id"])
 }
 
@@ -430,7 +430,7 @@ func TestGetOrder_NotFound_404(t *testing.T) {
 	ts, _, _ := setupTestServer(t)
 
 	resp := getJSON(ts, "/v1/orders/01912345-6789-7abc-def0-123456789abc")
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 }
@@ -439,20 +439,20 @@ func TestListOrders(t *testing.T) {
 	ts, _, _ := setupTestServer(t)
 
 	// Create 2 orders
-	postJSON(ts, "/v1/orders", createOrderPayload(), map[string]string{
+	_ = postJSON(ts, "/v1/orders", createOrderPayload(), map[string]string{
 		"Idempotency-Key": "list-key-001",
 	}).Body.Close()
-	postJSON(ts, "/v1/orders", createOrderPayload(), map[string]string{
+	_ = postJSON(ts, "/v1/orders", createOrderPayload(), map[string]string{
 		"Idempotency-Key": "list-key-002",
 	}).Body.Close()
 
 	resp := getJSON(ts, "/v1/orders")
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&result))
 
 	data := result["data"].([]interface{})
 	assert.GreaterOrEqual(t, len(data), 2)
@@ -464,18 +464,18 @@ func TestListOrderLines(t *testing.T) {
 	resp := postJSON(ts, "/v1/orders", createOrderPayload(), map[string]string{
 		"Idempotency-Key": "lines-key-001",
 	})
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var created map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&created)
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&created))
 	orderID := created["id"].(string)
 
 	resp2 := getJSON(ts, "/v1/orders/"+orderID+"/lines")
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, resp2.StatusCode)
 
 	var lines []interface{}
-	json.NewDecoder(resp2.Body).Decode(&lines)
+	require.NoError(t, json.NewDecoder(resp2.Body).Decode(&lines))
 	assert.Len(t, lines, 1)
 }
 
@@ -488,21 +488,21 @@ func TestEndToEnd_CreateConfirmVerifyEvent(t *testing.T) {
 	resp := postJSON(ts, "/v1/orders", createOrderPayload(), map[string]string{
 		"Idempotency-Key": "e2e-key-001",
 	})
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	require.Equal(t, http.StatusCreated, resp.StatusCode)
 
 	var created map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&created)
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&created))
 	orderID := created["id"].(string)
 	assert.Equal(t, "PENDING_VALIDATION", created["status"])
 
 	// 2. Confirm
 	resp2 := postJSON(ts, "/v1/orders/"+orderID+"/confirm", nil, nil)
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 	require.Equal(t, http.StatusOK, resp2.StatusCode)
 
 	var confirmed map[string]interface{}
-	json.NewDecoder(resp2.Body).Decode(&confirmed)
+	require.NoError(t, json.NewDecoder(resp2.Body).Decode(&confirmed))
 	assert.Equal(t, "CONFIRMED", confirmed["status"])
 
 	// 3. Verify event was published
@@ -519,10 +519,10 @@ func TestEndToEnd_CreateConfirmVerifyEvent(t *testing.T) {
 
 	// 4. Verify we can GET the order and see CONFIRMED status
 	resp3 := getJSON(ts, "/v1/orders/"+orderID)
-	defer resp3.Body.Close()
+	defer func() { _ = resp3.Body.Close() }()
 
 	var fetched map[string]interface{}
-	json.NewDecoder(resp3.Body).Decode(&fetched)
+	require.NoError(t, json.NewDecoder(resp3.Body).Decode(&fetched))
 	assert.Equal(t, "CONFIRMED", fetched["status"])
 }
 
@@ -537,11 +537,11 @@ func TestIdempotency_SameKeyDifferentBody_ReturnsOriginal(t *testing.T) {
 	resp1 := postJSON(ts, "/v1/orders", payload1, map[string]string{
 		"Idempotency-Key": key,
 	})
-	defer resp1.Body.Close()
+	defer func() { _ = resp1.Body.Close() }()
 	assert.Equal(t, http.StatusCreated, resp1.StatusCode)
 
 	var order1 map[string]interface{}
-	json.NewDecoder(resp1.Body).Decode(&order1)
+	require.NoError(t, json.NewDecoder(resp1.Body).Decode(&order1))
 
 	// Second request with same key
 	payload2 := createOrderPayload()
@@ -549,12 +549,12 @@ func TestIdempotency_SameKeyDifferentBody_ReturnsOriginal(t *testing.T) {
 	resp2 := postJSON(ts, "/v1/orders", payload2, map[string]string{
 		"Idempotency-Key": key,
 	})
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, resp2.StatusCode)
 
 	var order2 map[string]interface{}
-	json.NewDecoder(resp2.Body).Decode(&order2)
+	require.NoError(t, json.NewDecoder(resp2.Body).Decode(&order2))
 
 	// Should return the original order
 	assert.Equal(t, order1["id"], order2["id"])

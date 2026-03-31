@@ -148,14 +148,7 @@ func (o *Order) Confirm() error {
 
 	lineSnapshots := make([]LineSnapshot, len(o.Lines))
 	for i, l := range o.Lines {
-		lineSnapshots[i] = LineSnapshot{
-			LineID:      l.LineID,
-			SKU:         l.SKU,
-			ProductName: l.ProductName,
-			Quantity:    l.Quantity,
-			UnitPrice:   l.UnitPrice,
-			LineTotal:   l.LineTotal,
-		}
+		lineSnapshots[i] = LineSnapshot(l)
 	}
 
 	o.addEvent(OrderConfirmed{
